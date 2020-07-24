@@ -13,12 +13,17 @@ A detailed list of all supported operations can be found in the [operations sect
 
 *kutil* is just an executable python script, not a library. Just install the required
 dependencies and copy the script to a folder within your ``$PATH``.
+On *Kali Linux*, all dependencies should be preinstalled and *kutil* should work out of the box.
 
 ```console
 $ git clone https://github.com/qtc-de/kutil
 $ pip3 install -r kutil/requirements.txt
 $ ln -s $(realpath kutil/kutil.py) ~/.local/bin/kutil
 ```
+
+*kutil* supports autocompletion for *bash*. To set it up follow the instructions in the
+[bash_completion.d](./bash_completion.d) folder.
+
 
 ### Supported Operations
 
@@ -453,7 +458,7 @@ By hooking the ``gss_import_name`` function, you can verify that *Firefox* searc
 credential matching the principal name ``HTTP@dev01.example.lab``. This format is called 
 ``NT-SRV-HST`` and does not contain the *realm* name explicitly (obviously, as *Firefox* could only
 guess the actual *realm* of the domain). The credential inside the *ccache*, on the other hand,
-are stored in the ``NT-SRV-INST`` format, that contains the *realm* name explicitly.
+is stored in the ``NT-SRV-INST`` format, that contains the *realm* name explicitly.
 
 The *GSSAPI* documentation says, that the different principal name types do not matter during credential
 lookups. However, this is only partially true as the explicit realm from the ``NT-SRV-INST`` type
@@ -480,6 +485,62 @@ Default principal: smeyer@EXAMPLE.LAB
 
 Valid starting     Expires            Service principal
 07/24/20 07:00:40  07/22/30 07:00:40  HTTP/dev01.example.lab@
+	renew until 07/22/30 07:00:40
+```
+
+Apart from this very specific example, changing the *service type* of a ticket can be quite useful.
+*GSSAPI* uses case sensitive comparison when looking up credentials. A lookup for ``HTTP/dev01.example.lab@EXAMPLE.LAB``
+does therefore not find the credential ``http/dev01.example.lab@EXAMPLE.LAB``. This can be annoying, but with *kutil*
+it is easy to change:
+
+```console
+$ klist
+Ticket cache: FILE:/tmp/krb5cc_1000
+Default principal: administrator@EXAMPLE.LAB
+
+Valid starting     Expires            Service principal
+07/24/20 07:00:40  07/22/30 07:00:40  http/dev01.example.lab@EXAMPLE.LAB
+	renew until 07/22/30 07:00:40
+$ kutil -s HTTP
+[+] Kerberos ticket cache '/tmp/krb5cc_1000' loaded.
+[+] Updating service of credential with index 0
+[+]     Old service: 'http'
+[+]     New service: 'HTTP'
+[+] Saving ticket as '/tmp/krb5cc_1000'.
+$ klist
+Ticket cache: FILE:/tmp/krb5cc_1000
+Default principal: administrator@EXAMPLE.LAB
+
+Valid starting     Expires            Service principal
+07/24/20 07:00:40  07/22/30 07:00:40  HTTP/dev01.example.lab@EXAMPLE.LAB
+	renew until 07/22/30 07:00:40
+```
+
+Finally, [this great article](https://shenaniganslabs.io/2019/01/28/Wagging-the-Dog.html#solving-a-sensitive-problem)
+on Kerberos constrained delegation demonstrates that ``S4U2Self`` can be quite useful to bypass limitations of
+*Silver Tickets*. To utilize this, it is required to change the target host of a ``S4U2Self`` ticket. This can, again,
+be easily done with *kutil*:
+
+```console
+$ klist
+Ticket cache: FILE:/tmp/krb5cc_1000
+Default principal: administrator@EXAMPLE.LAB
+
+Valid starting     Expires            Service principal
+07/24/20 07:00:40  07/22/30 07:00:40  cifs/serviceA$@EXAMPLE.LAB
+	renew until 07/22/30 07:00:40
+$ kutil -t servicea.example.lab
+[+] Kerberos ticket cache '/tmp/krb5cc_1000' loaded.
+[+] Updating target of credential with index 0
+[+]     Old target: 'serviceA$'
+[+]     New target: 'servicea.example.lab'
+[+] Saving ticket as '/tmp/krb5cc_1000'.
+$ klist
+Ticket cache: FILE:/tmp/krb5cc_1000
+Default principal: administrator@EXAMPLE.LAB
+
+Valid starting     Expires            Service principal
+07/24/20 07:00:40  07/22/30 07:00:40  cifs/servicea.example.lab@EXAMPLE.LAB
 	renew until 07/22/30 07:00:40
 ```
 
