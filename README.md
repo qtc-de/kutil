@@ -490,7 +490,7 @@ Valid starting     Expires            Service principal
 
 As *kutil* does already implement ticket decryption, one could also think about modifying the
 encrypted portions of Kerberos tickets. However, once you have credentials for decrypting tickets
-you could also just generate a new one using [ticketer.py](). Therefore, modifying the encrypted
+you could also just generate a new one using [ticketer.py](https://github.com/SecureAuthCorp/impacket/blob/master/examples/ticketer.py). Therefore, modifying the encrypted
 contents seems to be of limited use. That being said, modifying the unencrypted portions seemed
 also not to be very useful until I encounterd the above described situation. So maybe this will
 be implemented in future.
@@ -501,7 +501,7 @@ be implemented in future.
 
 -----
 
-*kutil* does heavily rely on the [impacket]() library. Furthermore, certain portions were copied
+*kutil* does heavily rely on the [impacket](https://github.com/SecureAuthCorp/impacket) library. Furthermore, certain portions were copied
 from other resources on *GitHub* (see comments in the source code). Thanks to all for sharing
 your code :)
 
