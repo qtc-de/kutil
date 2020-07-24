@@ -1,0 +1,3 @@
+pycrypto
+pyasn1
+impacket
