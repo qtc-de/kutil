@@ -11,10 +11,6 @@ from binascii import unhexlify,hexlify,Error
 
 from Crypto.Cipher import AES
 from pyasn1.codec.der import encoder, decoder
-import impacket.krb5.ccache as cc
-from impacket.krb5.crypto import Key, _enctype_table, InvalidChecksum
-from impacket.krb5.constants import EncryptionTypes
-from impacket.krb5.pac import PACTYPE, VALIDATION_INFO
 
 
 default_cache = '/tmp/krb5cc_' + str(os.getuid())
@@ -60,7 +56,7 @@ def open_ticket_cache(path):
         None
     '''
     try:
-        ccache = cc.CCache.loadFile(path)
+        ccache = CCache.loadFile(path)
         return ccache
     except FileNotFoundError:
         error = f"Kerberos ticket cache '{path}' does not exist."
@@ -322,6 +318,8 @@ parser.add_argument('--split', action='store_true', help='split ticket cache int
 parser.add_argument('-t', '--target', help='update target server of credential selected by index')
 args = parser.parse_args()
 
+# impacket CCache is first loaded after args were parsed. This improves startup time when using -h or --help
+from impacket.krb5.ccache import CCache
 
 #######################################################################################
 #####                              Generate Hashes                                #####
@@ -414,7 +412,7 @@ if args.split:
         count += 1
         name = prefix + str(count)
 
-        new_cc = cc.CCache(data=main_cc.getData())
+        new_cc = CCache(data=main_cc.getData())
         new_cc.credentials = [credential]
 
         new_cc.saveFile(name)
@@ -678,6 +676,11 @@ if args.list:
 ##### Copied from: https://gist.github.com/xan7r/ca99181e3d45ee2042425f4f9181e614 #####
 #######################################################################################
 if args.decrypt:
+
+    # impacket modules have a long load time. Therefore they are only loaded when required.
+    from impacket.krb5.crypto import Key, _enctype_table, InvalidChecksum
+    from impacket.krb5.constants import EncryptionTypes
+    from impacket.krb5.pac import PACTYPE, VALIDATION_INFO
 
     key = args.decrypt
     credential = main_cc.credentials[args.index]
