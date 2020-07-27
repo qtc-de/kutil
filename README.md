@@ -30,7 +30,7 @@ A detailed list of all supported operations can be found in the [operations sect
     + [Hash Password](#hash-password)
     + [List Ticket Cache](#list-ticket-cache)
 - [Why Modifying Tickets](#why-modifying-tickets)
-- [Modifying Encypted Ticket Content](#modifying-encrypted-ticket-content)
+- [Modifying Encrypted Ticket Content](#modifying-encrypted-ticket-content)
 - [Acknowledgements](#acknowledgements)
 
 
@@ -379,6 +379,8 @@ $ kutil --split
 
 #### Miscellaneous
 
+Other functions that can be useful when working with Kerberos tickets.
+
 ##### Decrypt Credential
 
 Decrypts the credential specified by the ``--index`` parameter (default 0). Requires
@@ -572,7 +574,7 @@ Valid starting     Expires            Service principal
 ```
 
 
-### Modifying Encypted Ticket Content
+### Modifying Encrypted Ticket Content
 
 -----
 
