@@ -1,0 +1,68 @@
+#!/bin/bash
+
+function _kutil() {
+
+    local cur prev words cword mod_opts hash_opts solo_opts not_complete path_complete cline
+
+    _init_completion || return
+    _count_args 
+
+    cline="${COMP_LINE}"
+    COMPREPLY=()
+
+    mod_opts="-d --default -p --principal -r --realm -s --service --spn -t --target"
+    hash_opts="--aes-user --aes-realm --aes-host --hash"
+
+    solo_opts="--decrypt -l --list"
+    solo_opts_out="-c --clear --delete -l --list"
+
+    not_complete="$mod_opts $hash_opts --delete --decrypt -i --index --prefix"
+    path_complete="-o --out -m --merge kutil"
+
+    if _comp_contains "$not_complete" "$prev"; then
+        return 0
+
+    elif _comp_contains "$path_complete" "$prev" && [[ "$cur" != -* ]]; then
+        _filedir
+        return 0
+
+    elif _comp_contains "$cline" "$hash_opts"; then
+
+        if _comp_contains "$cline" "--aes-user --aes-host"; then
+            opts="--aes-realm --hash"
+        else
+            opts="$hash_opts"
+        fi
+
+    elif [[ $args -eq 1 ]] && [[ $cur != -* ]]; then
+        _filedir
+        return 0
+
+    elif _comp_contains "$cline" "$mod_opts"; then
+        opts="$mod_opts -o --out -i --index"
+
+    elif _comp_contains "$cline" "$solo_opts_out"; then
+        opts="-o --out"
+
+    elif _comp_contains "$cline" "$solo_opts"; then
+        opts=""
+
+    elif _comp_contains "$cline" "-m --merge"; then
+        opts="-m --merge -o --out"
+
+    elif _comp_contains "$cline" "--split"; then
+        opts="--prefix"
+
+    else
+        opts=$(_parse_help "$1")
+    fi
+
+    opts="$opts -h --help"
+    _comp_filter "opts" "-m --merge"
+    _comp_filter_shorts "opts"
+    
+	mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}") 
+	return 0
+}
+
+complete -F _kutil kutil

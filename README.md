@@ -48,8 +48,15 @@ $ pip3 install -r kutil/requirements.txt
 $ ln -s $(realpath kutil/kutil.py) ~/.local/bin/kutil
 ```
 
-*kutil* supports autocompletion for *bash*. To set it up follow the instructions in the
-[bash_completion.d](./bash_completion.d) folder.
+*kutil* supports autocompletion for *bash* and the corresponding completion script can be found
+inside the [bash_completion.d](./bash_completion.d) folder. The script assumes that the
+[bash-completion]() package is installed and that my [completion-helpers]() functions are
+available. If you setup both projects, you can just copy the completion script inside your
+local ``~/.bash_completion.d`` folder:
+
+```console
+$ ln -s $(realpath kutil/bash_completion.d/kutil) ~/bash_completion.d/kutil
+```
 
 
 ### Supported Operations
