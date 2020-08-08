@@ -460,7 +460,7 @@ def decrypt_credential(ccache, index, key):
             raise KutilException(f"Encryption type '{enc_type}' is not supported.")
 
     except (binascii.Error, ValueError) as e:
-        raise KutilException("[-] Error during key creation: " + str(e))
+        raise KutilException("Error during key creation: " + str(e))
 
     cipher = _enctype_table[enc_type]
 
@@ -475,7 +475,7 @@ def decrypt_credential(ccache, index, key):
         decrypted_ticket = cipher.decrypt(key, 2, unhexlify(encrypted_ticket))
 
     except InvalidChecksum as e:
-        raise KutilException("[-] Decryption error: " + str(e))
+        raise KutilException("Decryption error: " + str(e))
 
     return decrypted_ticket
 
