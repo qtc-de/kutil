@@ -65,6 +65,8 @@ import kutil
 #######################################################################################
 if args.hash is not None:
 
+    print(f"[+] Generating hashes...")
+
     ntlm_hash = kutil.get_ntlm_hash(args.hash)
     print(f"[+]    NTLM\t\t: {ntlm_hash}")
 
