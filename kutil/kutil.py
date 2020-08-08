@@ -144,130 +144,6 @@ def parse_ticket(decrypted_ticket):
     return parsed_ticket
 
 
-def update_realm(principal, realm):
-    '''
-    Updates the realm of a principal object.
-
-    Parameters:
-        principal                   (Principal)             Principal object
-        realm                       (string)                Realm name as string
-
-    Returns:
-        None
-    '''
-    brealm = realm.encode('utf-8')
-    update_counted_octet_string(principal.realm, brealm)
-
-
-def update_service(principal, service):
-    '''
-    Updates the service type of a principal object.
-
-    Parameters:
-        principal                   (Principal)             Principal object
-        service                     (string)                Service type as string
-
-    Returns:
-        None
-    '''
-    bservice = service.encode('utf-8')
-    service_component = principal.components[0]
-    update_counted_octet_string(service_component, bservice)
-
-
-def update_target(principal, target):
-    '''
-    Updates the target server of a principal object.
-
-    Parameters:
-        principal                   (Principal)             Principal object
-        target                      (string)                Target server as string
-
-    Returns:
-        None
-    '''
-    btarget = target.encode('utf-8')
-    target_component = principal.components[1]
-    update_counted_octet_string(target_component, btarget)
-
-
-def update_spn(principal, spn):
-    '''
-    Updates the realm, service type and target server of a principal object according
-    to the specified {spn}. The SPN is expected in the format: 'service/target@realm'.
-
-    Parameters:
-        principal                   (Principal)             Principal object
-        spn                         (string)                SPN as string
-
-    Returns:
-        None
-    '''
-    split = spn.split('/')
-    split2 = split[1].split('@')
-
-    if len(split) != 2 or len(split2) != 2:
-        error = "SPN is expected in the format: 'service/target@domain'"
-        raise KutilException(error)
-
-    update_realm(principal, split2[1])
-    update_target(principal, split2[0])
-    update_service(principal, split[0])
-
-
-def update_principal(principal, principal_new):
-    '''
-    Updates the client principal of a principal object. The new principal is expected
-    as: 'user@domain'.
-
-    Parameters:
-        principal                   (Principal)             Principal object
-        principal_new               (string)                Principal as string
-
-    Returns:
-        None
-    '''
-    split = principal_new.split('@')
-
-    if len(split) != 2:
-        error = "Principal is expected in the format: 'user@domain'"
-        raise KutilException(error)
-
-    buser = split[0].encode('utf-8')
-    bdomain = split[1].encode('utf-8')
-
-    update_counted_octet_string(principal.realm, bdomain)
-    client_component = principal.components[0]
-    update_counted_octet_string(client_component, buser)
-
-
-def update_default_principal(ccache, principal):
-    '''
-    Updates the default principal of a CCache object. The new principal is expected
-    as: 'user@domain'.
-
-    Parameters:
-        principal                   (Principal)             Principal object
-        principal_new               (string)                Principal as string
-
-    Returns:
-        None
-    '''
-    split = principal.split('@')
-
-    if len(split) != 2:
-        error = "Principal is expected in the format: 'user@domain'"
-        raise KutilException(error)
-
-    buser = split[0].encode('utf-8')
-    bdomain = split[1].encode('utf-8')
-    principal = ccache.principal
-
-    update_counted_octet_string(principal.realm, bdomain)
-    client_component = principal.components[0]
-    update_counted_octet_string(client_component, buser)
-
-
 def get_ntlm_hash(password):
     '''
     Computes the NTLM hash of the given password.
@@ -320,7 +196,7 @@ def get_aes_hashes(password, username=None, hostname=None, domain=None):
     encrypted = cipher.encrypt(aes_constant)
 
     result = binascii.hexlify(encrypted).decode('utf-8')
-    hashes.append(result)
+    hashes.append(result.upper())
 
     # AES256
     aes_constant += b'\x5C\x9B\xDC\xDA\xD9\x5C\x98\x99\xC4\xCA\xE4\xDE\xE6\xD6\xCA\xE4'
@@ -332,7 +208,7 @@ def get_aes_hashes(password, username=None, hostname=None, domain=None):
     encrypted_part_2 = cipher.encrypt(encrypted_part_1)
 
     result = binascii.hexlify(encrypted_part_1[0:16] + encrypted_part_2[0:16]).decode('utf-8')
-    hashes.append(result)
+    hashes.append(result.upper())
 
     return hashes
 
@@ -602,3 +478,127 @@ def decrypt_credential(ccache, index, key):
         raise KutilException("[-] Decryption error: " + str(e))
 
     return decrypted_ticket
+
+
+def update_realm(principal, realm):
+    '''
+    Updates the realm of a principal object.
+
+    Parameters:
+        principal                   (Principal)             Principal object
+        realm                       (string)                Realm name as string
+
+    Returns:
+        None
+    '''
+    brealm = realm.encode('utf-8')
+    update_counted_octet_string(principal.realm, brealm)
+
+
+def update_service(principal, service):
+    '''
+    Updates the service type of a principal object.
+
+    Parameters:
+        principal                   (Principal)             Principal object
+        service                     (string)                Service type as string
+
+    Returns:
+        None
+    '''
+    bservice = service.encode('utf-8')
+    service_component = principal.components[0]
+    update_counted_octet_string(service_component, bservice)
+
+
+def update_target(principal, target):
+    '''
+    Updates the target server of a principal object.
+
+    Parameters:
+        principal                   (Principal)             Principal object
+        target                      (string)                Target server as string
+
+    Returns:
+        None
+    '''
+    btarget = target.encode('utf-8')
+    target_component = principal.components[1]
+    update_counted_octet_string(target_component, btarget)
+
+
+def update_spn(principal, spn):
+    '''
+    Updates the realm, service type and target server of a principal object according
+    to the specified {spn}. The SPN is expected in the format: 'service/target@realm'.
+
+    Parameters:
+        principal                   (Principal)             Principal object
+        spn                         (string)                SPN as string
+
+    Returns:
+        None
+    '''
+    split = spn.split('/')
+    split2 = split[1].split('@')
+
+    if len(split) != 2 or len(split2) != 2:
+        error = "SPN is expected in the format: 'service/target@domain'"
+        raise KutilException(error)
+
+    update_realm(principal, split2[1])
+    update_target(principal, split2[0])
+    update_service(principal, split[0])
+
+
+def update_principal(principal, principal_new):
+    '''
+    Updates the client principal of a principal object. The new principal is expected
+    as: 'user@domain'.
+
+    Parameters:
+        principal                   (Principal)             Principal object
+        principal_new               (string)                Principal as string
+
+    Returns:
+        None
+    '''
+    split = principal_new.split('@')
+
+    if len(split) != 2:
+        error = "Principal is expected in the format: 'user@domain'"
+        raise KutilException(error)
+
+    buser = split[0].encode('utf-8')
+    bdomain = split[1].encode('utf-8')
+
+    update_counted_octet_string(principal.realm, bdomain)
+    client_component = principal.components[0]
+    update_counted_octet_string(client_component, buser)
+
+
+def update_default_principal(ccache, principal):
+    '''
+    Updates the default principal of a CCache object. The new principal is expected
+    as: 'user@domain'.
+
+    Parameters:
+        principal                   (Principal)             Principal object
+        principal_new               (string)                Principal as string
+
+    Returns:
+        None
+    '''
+    split = principal.split('@')
+
+    if len(split) != 2:
+        error = "Principal is expected in the format: 'user@domain'"
+        raise KutilException(error)
+
+    buser = split[0].encode('utf-8')
+    bdomain = split[1].encode('utf-8')
+    principal = ccache.principal
+
+    update_counted_octet_string(principal.realm, bdomain)
+    client_component = principal.components[0]
+    update_counted_octet_string(client_component, buser)
