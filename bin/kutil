@@ -296,6 +296,12 @@ if args.clear:
 #######################################################################################
 if args.delete is not None:
 
+    if args.delete >= credential_count:
+        print(f"[-] Specified credential index '{args.delete}' is out of range.")
+        print(f"[-]     Only {credential_count} credential(s) are currently cached.")
+        print(f"[-]     The maximum credential index is thereby {credential_count - 1}.")
+        sys.exit(1)
+
     print(f"[+] Deleting credential with index {args.delete}.")
     del main_cc.credentials[args.delete]
 
