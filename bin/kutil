@@ -1,0 +1,342 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import argparse
+from io import StringIO
+
+
+def add_prefix(text, prefix='[+] '):
+    '''
+    Adds the specified prefix in front of each line in {text}.
+
+    Parameters:
+        text                        (string)                Text to apply prefix
+        prefix                      (string)                Prefix to apply
+
+    Returns:
+        prefixed_text               (string)                Prefixed text
+    '''
+    prefixed_lines = []
+    lines = text.split('\n')
+
+    for line in lines:
+        prefixed_line = prefix + line
+        prefixed_lines.append(prefixed_line)
+
+    return '\n'.join(prefixed_lines)
+
+
+default_cc = '/tmp/krb5cc_' + str(os.getuid())
+parser = argparse.ArgumentParser(description='''kutil is a command line utility to work with Kerberos
+                                                ticket cache files (MIT format). It can be used to merge
+                                                different Kerberos tickets into a single ticket cache,
+                                                to split or delete credentials from a ticket cache or to
+                                                modify the unencrypted portions of an existing ticket.''')
+
+parser.add_argument('ticket', nargs='?', default=default_cc, help=f'Kerberos cache to operate on (default: {default_cc})')
+parser.add_argument('--aes-user', metavar='USERNAME', dest='username', help='username for AES hash generation')
+parser.add_argument('--aes-realm', metavar='REALM', dest='domain', help='realm for AES hash generation')
+parser.add_argument('--aes-host', metavar='HOSTNAME', dest='hostname', help='hostname for AES hash generation')
+parser.add_argument('-c', '--clear', action='store_true', help='clear duplicate credentials')
+parser.add_argument('-d', '--default', metavar='PRINCIPAL', help='update default principal of ccache')
+parser.add_argument('--delete', metavar='INDEX', type=int, help='delete credential with specified index')
+parser.add_argument('--decrypt', metavar='KEY', help='decrypt credential selected by index')
+parser.add_argument('--hash', metavar='PASSWORD', help='generate hashes for specified password')
+parser.add_argument('-i', '--index', type=int, metavar='NUMBER', default=0, help='ticket index for updates (default: 0)')
+parser.add_argument('-l', '--list', action='store_true', help='list ticket contents')
+parser.add_argument('-m', '--merge', metavar='PATH', action='append', default=[], help='merge specified cache into main cache')
+parser.add_argument('-o', '--out', metavar='PATH', help='filename of the output ticket (default: ticket param)')
+parser.add_argument('-p', '--principal', help='update principal of credential selected by index')
+parser.add_argument('--prefix', default='cc_split_', help='filename prefix for split operation (default: cc_split_)')
+parser.add_argument('-r', '--realm', help='update the target realm of credential selected by index')
+parser.add_argument('-s', '--service', help='update service type (e.g. HTTP) of credential selected by index')
+parser.add_argument('--spn', help='update service SPN (e.g. service/target@realm) of credential slected by index')
+parser.add_argument('--split', action='store_true', help='split ticket cache into seperate tickets')
+parser.add_argument('-t', '--target', help='update target server of credential selected by index')
+args = parser.parse_args()
+
+# Due to the impacket imports, kutil has a long load time.
+# Therefore, we load it after args are parsed.
+import kutil
+
+#######################################################################################
+#                                  Generate Hashes                                    #
+#######################################################################################
+if args.hash is not None:
+
+    print(f"[+] Generating hashes...")
+
+    ntlm_hash = kutil.get_ntlm_hash(args.hash)
+    print(f"[+]    NTLM\t\t: {ntlm_hash}")
+
+    if not ((args.username or args.hostname) and args.domain):
+        print("[-] Notice: --aes-user or --aes-host and --aes-realm need to be supplied for AES hash calculation.")
+        sys.exit(0)
+
+    aes_hashes = kutil.get_aes_hashes(args.hash, args.username, args.hostname, args.domain)
+    print(f"[+]    AES 128\t\t: {aes_hashes[0]}")
+    print(f"[+]    AES 256\t\t: {aes_hashes[1]}")
+    sys.exit(0)
+
+
+#######################################################################################
+#                                   Ticket Setup                                      #
+#######################################################################################
+args.out = args.out if args.out else args.ticket
+
+try:
+    main_cc = kutil.open_ticket_cache(args.ticket)
+    credential_count = len(main_cc.credentials)
+
+    if args.index is not None and args.index >= credential_count:
+        print(f"[-] Specified credential index '{args.index}' is out of range.")
+        print(f"[-]     Only {credential_count} credential(s) are currently cached.")
+        print(f"[-]     The maximum credential index is thereby {credential_count - 1}.")
+        sys.exit(1)
+
+    print(f"[+] Kerberos ticket cache '{args.ticket}' loaded.")
+
+except kutil.KutilException as e:
+    print("[-] " + str(e))
+    sys.exit(1)
+
+
+#######################################################################################
+#                                  Split Operation                                    #
+#######################################################################################
+if args.split:
+
+    print(f"[+] Splitting {args.ticket} into {credential_count} separate caches.")
+    names = kutil.split_cache(main_cc, args.prefix)
+
+    for name in names:
+        print(f"[+]     CCache {name} created.")
+
+    sys.exit(0)
+
+
+#######################################################################################
+#                                  Merge Operation                                    #
+#######################################################################################
+if args.merge:
+
+    try:
+        cc_list = []
+        for ccache in args.merge:
+
+            additional_cc = kutil.open_ticket_cache(ccache)
+            print(f"[+] Kerberos ticket cache '{ccache}' loaded.")
+
+            cc_list.append(additional_cc)
+
+    except kutil.KutilException as e:
+        print("[-] " + str(e))
+        sys.exit(1)
+
+    merged, duplicates = kutil.merge_caches(main_cc, cc_list)
+
+    if duplicates != 0:
+        print(f"[+] {duplicates} duplicate credential(s) were not added to '{args.ticket}'")
+
+    if merged != 0:
+        print(f"[+] Added {merged} credential(s) to '{args.ticket}'")
+        print(f"[+] Saving ticket as '{args.out}'")
+        main_cc.saveFile(args.out)
+
+    else:
+        print(f"[-] No credentials were merged to {args.ticket}''")
+
+    sys.exit(0)
+
+
+#######################################################################################
+#                                  Change Principal                                   #
+#######################################################################################
+if args.default is not None:
+
+    old_default = kutil.format_default_principal(main_cc)
+    print("[+] Updating default principal.")
+    print(f"[+]     Old default principal: '{old_default}'")
+
+    try:
+        kutil.update_default_principal(main_cc, args.default)
+    except kutil.KutilException as e:
+        print("[-] " + str(e))
+        sys.exit(1)
+
+    new_default = kutil.format_default_principal(main_cc)
+    print(f"[+]     New default principal: '{new_default}'")
+    print(f"[+] Saving ticket as '{args.out}'.")
+
+    main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                    Change Realm                                     #
+#######################################################################################
+if args.realm is not None:
+
+    principal = kutil.get_server_principal(main_cc, args.index)
+    old_realm = kutil.principal_get(principal, 'realm')
+
+    print(f"[+] Updating realm of credential with index {args.index}")
+    print(f"[+]     Old realm: '{old_realm}'")
+
+    kutil.update_realm(principal, args.realm)
+    new_realm = kutil.principal_get(principal, 'realm')
+
+    print(f"[+]     New realm: '{new_realm}'")
+    print(f"[+] Saving ticket as '{args.out}'.")
+
+    main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                   Change Service                                    #
+#######################################################################################
+if args.service is not None:
+
+    principal = kutil.get_server_principal(main_cc, args.index)
+    old_service = kutil.principal_get(principal, 'service')
+
+    print(f"[+] Updating service of credential with index {args.index}")
+    print(f"[+]     Old service: '{old_service}'")
+
+    kutil.update_service(principal, args.service)
+    new_service = kutil.principal_get(principal, 'service')
+
+    print(f"[+]     New service: '{new_service}'")
+    print(f"[+] Saving ticket as '{args.out}'.")
+    main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                   Change Target                                     #
+#######################################################################################
+if args.target is not None:
+
+    principal = kutil.get_server_principal(main_cc, args.index)
+    old_target = kutil.principal_get(principal, 'target')
+
+    print(f"[+] Updating target of credential with index {args.index}")
+    print(f"[+]     Old target: '{old_target}'")
+
+    kutil.update_target(principal, args.target)
+    new_target = kutil.principal_get(principal, 'target')
+
+    print(f"[+]     New target: '{new_target}'")
+    print(f"[+] Saving ticket as '{args.out}'.")
+    main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                  Change Principal                                   #
+#######################################################################################
+if args.principal is not None:
+
+    principal = kutil.get_client_principal(main_cc, args.index)
+    old_principal = kutil.format_client_principal(principal)
+
+    print(f"[+] Updating principal of credential with index {args.index}")
+    print(f"[+]     Old principal: '{old_principal}'")
+
+    try:
+        kutil.update_principal(principal, args.principal)
+    except kutil.KutilException as e:
+        print("[-] " + str(e))
+        sys.exit(1)
+
+    new_principal = kutil.format_client_principal(principal)
+    print(f"[+]     New principal: '{new_principal}'")
+    print(f"[+] Saving ticket as '{args.out}'.")
+
+    main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                    Change SPN                                       #
+#######################################################################################
+if args.spn is not None:
+
+    principal = kutil.get_server_principal(main_cc, args.index)
+    old_spn = kutil.format_server_principal(principal)
+
+    print(f"[+] Updating SPN of credential with index {args.index}")
+    print(f"[+]     Old SPN: '{old_spn}'")
+
+    try:
+        kutil.update_spn(principal, args.spn)
+
+    except kutil.KutilException as e:
+        print("[-] " + str(e))
+        sys.exit(1)
+
+    new_spn = kutil.format_server_principal(principal)
+    print(f"[+]     New SPN: '{new_spn}'")
+    print(f"[+] Saving ticket as '{args.out}'.")
+
+    main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                 Clear Duplicates                                    #
+#######################################################################################
+if args.clear:
+
+    print(f"[+] Removing duplicate credentials from '{args.ticket}'.")
+    duplicates = kutil.clear_cache(main_cc)
+    print(f"[+] {duplicates} duplicate credentials removed.")
+
+    if duplicates != 0:
+        print(f"[+] Saving ticket as '{args.out}'.")
+        main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                 Delete Credential                                   #
+#######################################################################################
+if args.delete is not None:
+
+    if args.delete >= credential_count:
+        print(f"[-] Specified credential index '{args.delete}' is out of range.")
+        print(f"[-]     Only {credential_count} credential(s) are currently cached.")
+        print(f"[-]     The maximum credential index is thereby {credential_count - 1}.")
+        sys.exit(1)
+
+    print(f"[+] Deleting credential with index {args.delete}.")
+    del main_cc.credentials[args.delete]
+
+    print(f"[+] Saving ticket as '{args.out}'.")
+    main_cc.saveFile(args.out)
+
+
+#######################################################################################
+#                                    List Ticket                                      #
+#######################################################################################
+if args.list:
+
+    sys.stdout = output = StringIO()
+    main_cc.prettyPrint()
+    sys.stdout = sys.__stdout__
+
+    output = output.getvalue()
+    output = add_prefix(output)
+    print(output)
+
+
+#######################################################################################
+#                                 Decrypt Credential                                  #
+#######################################################################################
+if args.decrypt:
+
+    try:
+        decrypted_ticket = kutil.decrypt_credential(main_cc, args.index, args.decrypt)
+
+    except kutil.KutilException as e:
+        print("[-] " + str(e))
+        sys.exit(1)
+
+    parsed_ticket = kutil.parse_ticket(decrypted_ticket)
+    parsed_ticket = add_prefix(parsed_ticket)
+    print(parsed_ticket)
