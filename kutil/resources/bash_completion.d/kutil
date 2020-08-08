@@ -1,5 +1,9 @@
 #!/bin/bash
 
+type _comp_contains &> /dev/null || return
+type _comp_filter &> /dev/null || return
+type _comp_filter_shorts &> /dev/null || return
+
 function _kutil() {
 
     local cur prev words cword mod_opts hash_opts solo_opts not_complete path_complete cline
