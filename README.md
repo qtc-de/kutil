@@ -41,25 +41,32 @@ A detailed list of all supported operations can be found in the [operations sect
 
 ----
 
-*kutil* is just an executable python script, not a library. Just install the required
-dependencies and copy the script to a folder within your ``$PATH``.
-On *Kali Linux*, all dependencies should be preinstalled and *kutil* should work out of the box.
+*kutil* can be build and installed as a *pip* package. The following
+command installs *kutil* for your current user profile:
+
+```console
+$ pip3 install kutil
+```
+
+You can also build *kutil* from source and install it directly by using
+the following commands:
 
 ```console
 $ git clone https://github.com/qtc-de/kutil
-$ pip3 install -r kutil/requirements.txt
-$ ln -s $(realpath kutil/kutil.py) ~/.local/bin/kutil
+$ cd kutil
+$ pip3 install -r requirements.txt
+$ python3 setup.py sdist
+$ pip3 install dist/*
 ```
 
-*kutil* supports autocompletion for *bash* and the corresponding completion script can be found
-inside the [bash_completion.d](./bash_completion.d) folder. The script assumes that the
-[bash-completion](https://github.com/scop/bash-completion) package is installed and that
-my [completion-helpers](https://github.com/qtc-de/completion-helpers) functions are available.
-If you setup both projects, you can just copy the completion script inside your local
-``~/.bash_completion.d`` folder:
+Additionally, *kutil* ships a [bash-completion](./kutil/resources/bash_completion.d/kutil) script.
+The completion script is installed automatically, but relies on the [completion-helpers](https://github.com/qtc-de/completion-helpers)
+package. If *completion-helpers* is already installed, autocompletion for *kutil* should
+work after installing the pip package. Otherwise, you may need to copy the completion
+script manually:
 
 ```console
-$ ln -s $(realpath kutil/bash_completion.d/kutil) ~/bash_completion.d/kutil
+$ cp kutil/resources/bash_completion.d/kutil ~/.bash_completion.d
 ```
 
 
