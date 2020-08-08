@@ -6,6 +6,9 @@
 It supports different operations like merging, splitting and modifying ticket caches.
 A detailed list of all supported operations can be found in the [operations section](#supported-operations).
 
+![](https://github.com/qtc-de/kutil/workflows/master%20Python%20CI/badge.svg?branch=master)
+![](https://github.com/qtc-de/kutil/workflows/develop%20Python%20CI/badge.svg?branch=develop)
+
 
 ### Table of Contents
 
